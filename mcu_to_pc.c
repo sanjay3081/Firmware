@@ -46,22 +46,25 @@ char eepromRead(unsigned int address) {
     return IAP_DATA;
 }
 
-uint16_t calculateCRC16(char *data, size_t length) {
-    uint16_t crc = 0xFFFF;
-
-    while (length--) {
-        crc ^= *data++;
-
-        for (int i = 0; i < 8; i++) {
-            if (crc & 0x0001) {
-                crc = (crc >> 1) ^ CRC16_POLY;
-            } else {
-                crc >>= 1;
-            }
-        }
-    }
-
-    return crc;
+char calculateCRC8(const char *data,int length) 
+{
+   char crc = 0x00;
+   char extract;
+   char sum;
+   for(int i=0;i<length;i++)
+   {
+      extract = *data;
+      for (char tempI = 8; tempI; tempI--) 
+      {
+         sum = (crc ^ extract) & 0x01;
+         crc >>= 1;
+         if (sum)
+            crc ^= 0x8C;
+         extract >>= 1;
+      }
+      data++;
+   }
+   return crc;
 }
 
 int main() {
