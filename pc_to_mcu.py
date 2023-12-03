@@ -18,7 +18,7 @@ for char in text_to_send:
     crc_value ^= ord(char)
     for _ in range(8):
         if crc_value & 0x0001:
-            crc_value = (crc_value >> 1) ^ CRC16_POLY
+            crc_value = (crc_value >> 1) ^ 0x1021
         else:
             crc_value >>= 1
 
