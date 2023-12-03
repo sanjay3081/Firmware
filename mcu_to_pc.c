@@ -1,6 +1,5 @@
 #include <LPC214x.h>
 
-// Define UART Registers
 #define RBR   0x00
 #define THR   0x00
 #define IER   0x04
@@ -9,22 +8,28 @@
 #define LCR   0x0C
 #define LSR   0x14
 
-// Define EEPROM Registers
 #define EEPROM_ADDR_START  0x00000000
-
-// Define CRC Parameters
 #define CRC_POLYNOMIAL 0x31
 
-// Function to calculate CRC8
-unsigned char calculateCRC8(const unsigned char *data, unsigned int size) {
-    unsigned char crc = 0;
-    for (unsigned int i = 0; i < size; ++i) {
-        crc ^= data[i];
-        for (unsigned int j = 0; j < 8; ++j) {
-            crc = (crc & 0x80) ? (crc << 1) ^ CRC_POLYNOMIAL : (crc << 1);
-        }
-    }
-    return crc;
+unsigned char calculateCRC8(const char *data,int length) 
+{
+   char crc = 0x00;
+   char extract;
+   char sum;
+   for(int i=0;i<length;i++)
+   {
+      extract = *data;
+      for (char tempI = 8; tempI; tempI--) 
+      {
+         sum = (crc ^ extract) & 0x01;
+         crc >>= 1;
+         if (sum)
+            crc ^= 0x8C;
+         extract >>= 1;
+      }
+      data++;
+   }
+   return crc;
 }
 
 // Function to send data to PC via UART
@@ -44,31 +49,25 @@ void sendDataToPC(const unsigned char *data, unsigned int size) {
     }
 }
 
-// Function to receive data from PC via UART
 void receiveDataFromPC() {
     unsigned char buffer[1000];
     unsigned int index = 0;
     
     while (1) {
-        // Receive data
+        
         while (!(U1LSR & 0x01));
         buffer[index] = U1RBR;
         
-        // Receive CRC
         while (!(U1LSR & 0x01));
         unsigned char receivedCRC = U1RBR;
         
-        // Calculate CRC for received data
         unsigned char calculatedCRC = calculateCRC8(&buffer[index], 1);
         
-        // Check CRC
         if (receivedCRC == calculatedCRC) {
-            // Data is valid, store in EEPROM
             IAP_ENTRY(buffer, (void *)(EEPROM_ADDR_START + index), 100);
             index++;
         }
         
-        // Check for end of transmission
         if (buffer[index - 1] == '\0') {
             break;
         }
@@ -76,20 +75,20 @@ void receiveDataFromPC() {
 }
 
 int main() {
-    // Initialize UART
-    PINSEL0 = 0x00050000;  // Configure TXD1 and RXD1 for UART1
-    U1LCR = 0x83;         // 8 bits, no Parity, 1 Stop bit, DLAB = 1
-    U1DLL = 78;           // 9600 Baud Rate @ 15MHz VPB Clock
-    U1LCR = 0x03;         // DLAB = 0
+    PINSEL0 = 0x00050000;  // UART1
+    U1LCR = 0x83;      
+    U1DLL = 78;        
+    U1LCR = 0x03;        
     
-    // Initialize EEPROM
-    IAP_ENTRY(0, 0, 0);  // Initialize EEPROM
+    IAP_ENTRY(0, 0, 0);  
     
-    // Send data to PC
-    sendDataToPC("Finance Minister Arun Jaitley Tuesday hit out at former RBI governor Raghuram Rajan...", 1000);
-    
-    // Receive data from PC
     receiveDataFromPC();
+    
+    unsigned char buffer[1000];
+    for (unsigned int i = 0; i < 1000; ++i) {
+        buffer[i] = IAP_ENTRY(0, (void *)(EEPROM_ADDR_START + i), 1);
+    }
+    sendDataToPC(buffer, 1000);
     
     return 0;
 }
